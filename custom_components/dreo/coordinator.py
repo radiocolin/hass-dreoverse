@@ -611,7 +611,8 @@ class DreoDehumidifierDeviceData(DreoGenericDeviceData):
         if (wind := state.get("windlevel")) is not None:
             hdh.wind_level = str(wind)
 
-        if (rh := state.get("rh_auto")) is not None:
+        # Use correct API field name for dehumidifier
+        if (rh := state.get("rhautolevel")) is not None:
             hdh.target_humidity = float(rh)
 
         if (humidity := state.get(DreoDirective.HUMIDITY_SENSOR)) is not None:
@@ -637,6 +638,10 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
     rgb_threshold: str | None = None
     filter_time: int | None = None
     work_time: int | None = None
+    rgb_state: bool | None = None
+    rgb_mode: str | None = None
+    rgb_color: int | None = None
+    rgb_brightness: int | None = None
 
     def __init__(
         self,
@@ -651,6 +656,10 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
         rgb_threshold: str | None = None,
         filter_time: int | None = None,
         work_time: int | None = None,
+        rgb_state: bool | None = None,
+        rgb_mode: str | None = None,
+        rgb_color: int | None = None,
+        rgb_brightness: int | None = None,
         model_config: dict[str, Any] | None = None,
     ) -> None:
         """Initialize Dreo humidifier device data."""
@@ -664,6 +673,10 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
         self.rgb_threshold = rgb_threshold
         self.filter_time = filter_time
         self.work_time = work_time
+        self.rgb_state = rgb_state
+        self.rgb_mode = rgb_mode
+        self.rgb_color = rgb_color
+        self.rgb_brightness = rgb_brightness
         self.model_config = model_config
 
     @staticmethod
@@ -682,16 +695,18 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
             humidifier_data.mode = str(mode)
 
         # Humidity ranges - different for different modes
-        if (rh_auto := state.get("rh_auto")) is not None:
+        # Use correct API field names: rhautolevel and rhsleeplevel
+        if (rh_auto := state.get("rhautolevel")) is not None:
             humidifier_data.target_humidity = float(rh_auto)
 
-        if (rh_sleep := state.get("rh_sleep")) is not None:
+        if (rh_sleep := state.get("rhsleeplevel")) is not None:
             humidifier_data.target_humidity = float(rh_sleep)
 
-        if (humidity := state.get("humidity_sensor")) is not None:
+        # Current humidity uses 'rh' field
+        if (humidity := state.get("rh")) is not None:
             humidifier_data.current_humidity = float(humidity)
 
-        if (fog_level := state.get("fog_level")) is not None:
+        if (fog_level := state.get("foglevel")) is not None:
             humidifier_data.fog_level = int(fog_level)
 
         if (led_level := state.get("ledlevel")) is not None:
@@ -700,14 +715,27 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
         if (rgb_level := state.get("rgblevel")) is not None:
             humidifier_data.rgb_level = str(rgb_level)
 
-        if (rgb_threshold := state.get("rgb_threshold")) is not None:
+        if (rgb_threshold := state.get("rgbth")) is not None:
             humidifier_data.rgb_threshold = str(rgb_threshold)
 
-        if (filter_time := state.get("filter_time")) is not None:
+        if (filter_time := state.get("filtertime")) is not None:
             humidifier_data.filter_time = int(filter_time)
 
-        if (work_time := state.get("work_time")) is not None:
+        if (work_time := state.get("worktime")) is not None:
             humidifier_data.work_time = int(work_time)
+
+        # RGB light state (uses different field names than circulation fans)
+        if (rgb_on := state.get(DreoDirective.RGB_SWITCH)) is not None:
+            humidifier_data.rgb_state = bool(rgb_on)
+
+        if (rgb_mode := state.get(DreoDirective.RGB_MODE)) is not None:
+            humidifier_data.rgb_mode = str(rgb_mode)
+
+        if (rgb_color := state.get(DreoDirective.RGB_COLOR)) is not None:
+            humidifier_data.rgb_color = int(rgb_color)
+
+        if (rgb_brightness := state.get(DreoDirective.RGB_BRIGHTNESS)) is not None:
+            humidifier_data.rgb_brightness = int(rgb_brightness)
 
         _set_toggle_switches_to_state(humidifier_data, state, model_config)
 
