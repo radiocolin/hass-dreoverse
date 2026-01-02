@@ -83,10 +83,6 @@ class DreoDirective(StrEnum):
     ECOLEVEL = "ecolevel"
     HEAT_LEVEL = "htalevel"
     OSCANGLE = "oscangle"
-    RGB_SWITCH = "rgbon"
-    RGB_MODE = "rgbmode"
-    RGB_COLOR = "rgbcolor"
-    RGB_BRIGHTNESS = "rgbbri"
 
 
 class DreoDeviceType(StrEnum):

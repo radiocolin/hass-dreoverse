@@ -125,18 +125,14 @@ class DreoRGBLight(DreoEntity, LightEntity):
         super().__init__(device, coordinator, "light", "RGB Light")
 
         device_id = device.get("deviceSn")
-        device_type = device.get("deviceType")
         self._attr_unique_id = f"{device_id}_rgb_light"
-
-        # Determine if this is a humidifier (uses different RGB field names)
-        self._is_humidifier = device_type == DreoDeviceType.HUMIDIFIER
 
         rgb_light_config = coordinator.model_config.get(
             DreoEntityConfigSpec.RGBLIGHT_ENTITY_CONF, {}
         )
         
         # For humidifiers, also check rgb_light_entity_config
-        if self._is_humidifier and not rgb_light_config:
+        if not rgb_light_config:
             rgb_light_config = coordinator.model_config.get(
                 "rgb_light_entity_config", {}
             )
@@ -199,18 +195,12 @@ class DreoRGBLight(DreoEntity, LightEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the RGB light."""
-        # Use appropriate directives based on device type
-        switch_directive = DreoDirective.RGB_SWITCH if self._is_humidifier else DreoDirective.AMBIENT_SWITCH
-        color_directive = DreoDirective.RGB_COLOR if self._is_humidifier else DreoDirective.AMBIENT_RGB_COLOR
-        brightness_directive = DreoDirective.RGB_BRIGHTNESS if self._is_humidifier else DreoDirective.AMBIENT_RGB_BRIGHTNESS
-        mode_directive = DreoDirective.RGB_MODE if self._is_humidifier else DreoDirective.AMBIENT_RGB_MODE
-        
-        command_params: dict[str, Any] = {switch_directive: True}
+        command_params: dict[str, Any] = {DreoDirective.AMBIENT_SWITCH: True}
 
         if ATTR_RGB_COLOR in kwargs:
             r, g, b = kwargs[ATTR_RGB_COLOR]
             color_int = (r << 16) | (g << 8) | b
-            command_params[color_directive] = color_int
+            command_params[DreoDirective.AMBIENT_RGB_COLOR] = color_int
 
         if ATTR_BRIGHTNESS in kwargs:
             current_rgb_mode = None
@@ -243,12 +233,12 @@ class DreoRGBLight(DreoEntity, LightEntity):
                 brightness_value = max(
                     1, int((brightness_percent / 100) * max_brightness)
                 )
-                command_params[brightness_directive] = brightness_value
+                command_params[DreoDirective.AMBIENT_RGB_BRIGHTNESS] = brightness_value
 
         if ATTR_EFFECT in kwargs:
             effect = kwargs[ATTR_EFFECT]
             if self._attr_effect_list and effect in self._attr_effect_list:
-                command_params[mode_directive] = effect
+                command_params[DreoDirective.AMBIENT_RGB_MODE] = effect
                 if (
                     effect in ["Breath", "Circle"]
                     and self.coordinator.data
@@ -264,15 +254,9 @@ class DreoRGBLight(DreoEntity, LightEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the RGB light."""
-        # Use appropriate directive based on device type
-        if self._is_humidifier:
-            await self.async_send_command_and_update(
-                DreoErrorCode.TURN_OFF_FAILED, **{DreoDirective.RGB_SWITCH: False}
-            )
-        else:
-            await self.async_send_command_and_update(
-                DreoErrorCode.TURN_OFF_FAILED, ambient_switch=False
-            )
+        await self.async_send_command_and_update(
+            DreoErrorCode.TURN_OFF_FAILED, ambient_switch=False
+        )
 
     @property
     def supported_features(self) -> LightEntityFeature:
@@ -303,8 +287,7 @@ class DreoRGBLight(DreoEntity, LightEntity):
             return
 
         color_int = (red << 16) | (green << 8) | blue
-        color_directive = DreoDirective.RGB_COLOR if self._is_humidifier else DreoDirective.AMBIENT_RGB_COLOR
-        command_params: dict[str, Any] = {color_directive: color_int}
+        command_params: dict[str, Any] = {DreoDirective.AMBIENT_RGB_COLOR: color_int}
 
         await self.async_send_command_and_update(
             DreoErrorCode.TURN_ON_FAILED, **command_params

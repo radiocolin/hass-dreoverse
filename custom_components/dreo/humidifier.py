@@ -238,13 +238,6 @@ class DreoHumidifier(DreoEntity, HumidifierEntity):
     _attr_fog_level_range: list[int] = [1, 6]
     _attr_rgb_humidity_threshold: str | None = None
 
-    # Map config directive names to actual API field names
-    _directive_name_map = {
-        "rh_auto": "rhautolevel",
-        "rh_sleep": "rhsleeplevel",
-        "fog_level": "foglevel",
-    }
-
     # Map string modes to API mode integers (for DR-HHM009S)
     _mode_to_int = {
         "Auto": 1,
@@ -417,9 +410,6 @@ class DreoHumidifier(DreoEntity, HumidifierEntity):
             _LOGGER.error("Directive name not found for mode %s", current_mode)
             return
 
-        # Map config directive name to actual API field name
-        actual_field_name = self._directive_name_map.get(directive_name, directive_name)
-
         if directive_name:
             if current_mode == "Manual":
                 min_fog, max_fog = self._attr_fog_level_range
@@ -433,9 +423,9 @@ class DreoHumidifier(DreoEntity, HumidifierEntity):
                         ),
                     ),
                 )
-                command_params[actual_field_name] = fog_level
+                command_params[directive_name] = fog_level
             else:
-                command_params[actual_field_name] = int(humidity)
+                command_params[directive_name] = int(humidity)
 
         await self.async_send_command_and_update(
             DreoErrorCode.SET_HEC_HUMIDITY_FAILED, **command_params
