@@ -56,31 +56,11 @@ class DreoEntity(CoordinatorEntity[DreoDataUpdateCoordinator]):
         self, error_translation_key: str, **kwargs: Any
     ) -> None:
         """Call a device command handling error messages and update entity state."""
-        
-        # Map integration field names to API field names for humidifiers
-        field_name_map = {
-            "power_switch": "poweron",
-            "led_switch": "ledon",
-            "mute_switch": "muteon",
-            "ambient_Light_switch": "rgbon",
-            "ambient_light_switch": "rgbon",
-            "ambient_switch": "rgbon",
-            "rh_auto": "rhautolevel",
-            "rh_sleep": "rhsleeplevel",
-            "fog_level": "foglevel",
-        }
-        
-        # Translate field names if needed
-        translated_kwargs = {}
-        for key, value in kwargs.items():
-            # Use mapped name if it exists, otherwise use original
-            api_key = field_name_map.get(key, key)
-            translated_kwargs[api_key] = value
 
         try:
             await self.coordinator.hass.async_add_executor_job(
                 partial(
-                    self.coordinator.client.update_status, self._device_id, **translated_kwargs
+                    self.coordinator.client.update_status, self._device_id, **kwargs
                 )
             )
 

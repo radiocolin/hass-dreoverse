@@ -238,20 +238,6 @@ class DreoHumidifier(DreoEntity, HumidifierEntity):
     _attr_fog_level_range: list[int] = [1, 6]
     _attr_rgb_humidity_threshold: str | None = None
 
-    # Map string modes to API mode integers (for DR-HHM009S)
-    _mode_to_int = {
-        "Auto": 1,
-        "Sleep": 2,
-        "Manual": 3,
-    }
-
-    # Map API mode integers to string modes
-    _int_to_mode = {
-        1: "Auto",
-        2: "Sleep",
-        3: "Manual",
-    }
-
     def __init__(
         self,
         device: dict[str, Any],
@@ -335,19 +321,13 @@ class DreoHumidifier(DreoEntity, HumidifierEntity):
             except (TypeError, ValueError):
                 self._attr_current_humidity = None
 
-        # Convert integer mode from API to string mode for Home Assistant
-        if humidifier_data.mode:
-            try:
-                mode_int = int(humidifier_data.mode)
-                mode_str = self._int_to_mode.get(mode_int)
-                if mode_str and mode_str in self._attr_available_modes:
-                    self._attr_mode = mode_str
-            except (TypeError, ValueError):
-                # If mode is already a string, use it directly
-                if (
-                    humidifier_data.mode in self._attr_available_modes
-                ):
-                    self._attr_mode = humidifier_data.mode
+        # pydreo library already provides mode as a string
+        if (
+            humidifier_data.mode
+            and self._attr_available_modes
+            and humidifier_data.mode in self._attr_available_modes
+        ):
+            self._attr_mode = humidifier_data.mode
 
         if self._attr_mode == "Manual":
             min_fog, max_fog = self._attr_fog_level_range
@@ -442,9 +422,8 @@ class DreoHumidifier(DreoEntity, HumidifierEntity):
         if not self.is_on:
             command_params[DreoDirective.POWER_SWITCH] = True
 
-        # Convert string mode to integer for API
-        mode_value = self._mode_to_int.get(mode, mode)
-        command_params[DreoDirective.MODE] = mode_value
+        # pydreo library accepts string mode names
+        command_params[DreoDirective.MODE] = mode
 
         await self.async_send_command_and_update(
             DreoErrorCode.SET_HUMIDIFIER_MODE_FAILED, **command_params
