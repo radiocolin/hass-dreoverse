@@ -55,6 +55,7 @@ async def async_setup_entry(
             # Create switches dynamically based on device_config['switches'] mapping
             error_map = {
                 "led_switch": DreoErrorCode.SET_LED_SWITCH_FAILED,
+                "ledlevel": DreoErrorCode.SET_LED_SWITCH_FAILED,
                 "lightsensor_switch": DreoErrorCode.SET_LIGHTSENSOR_SWITCH_FAILED,
                 "mute_switch": DreoErrorCode.SET_MUTE_SWITCH_FAILED,
             }
@@ -158,9 +159,12 @@ class DreoToggleSwitch(DreoEntity, SwitchEntity):
             )
             return
         
-        # ledlevel needs string "On"/"Off", not boolean
-        if self._field == "ledlevel":
-            await self.async_send_command_and_update(self._error_key, **{self._field: "On"})
+        # Map config field names to API field names and values
+        # Config uses led_switch, but API needs ledlevel="On"/"Off"
+        if self._field == "led_switch":
+            await self.async_send_command_and_update(self._error_key, ledlevel="On")
+        elif self._field == "ledlevel":
+            await self.async_send_command_and_update(self._error_key, ledlevel="On")
         else:
             await self.async_send_command_and_update(self._error_key, **{self._field: True})
 
@@ -174,9 +178,12 @@ class DreoToggleSwitch(DreoEntity, SwitchEntity):
             )
             return
         
-        # ledlevel needs string "On"/"Off", not boolean
-        if self._field == "ledlevel":
-            await self.async_send_command_and_update(self._error_key, **{self._field: "Off"})
+        # Map config field names to API field names and values
+        # Config uses led_switch, but API needs ledlevel="On"/"Off"
+        if self._field == "led_switch":
+            await self.async_send_command_and_update(self._error_key, ledlevel="Off")
+        elif self._field == "ledlevel":
+            await self.async_send_command_and_update(self._error_key, ledlevel="Off")
         else:
             await self.async_send_command_and_update(
                 self._error_key, **{self._field: False}
@@ -187,8 +194,8 @@ class DreoToggleSwitch(DreoEntity, SwitchEntity):
         """Return a more distinctive icon per switch and state."""
 
         is_on = getattr(self, "_attr_is_on", False)
-        if self._field == "led_switch":
-            return "mdi:led-on" if is_on else "mdi:led-off"
+        if self._field == "led_switch" or self._field == "ledlevel":
+            return "mdi:television" if is_on else "mdi:television-off"
         if self._field == "lightsensor_switch":
             return "mdi:brightness-auto" if is_on else "mdi:brightness-5"
         if self._field == "mute_switch":

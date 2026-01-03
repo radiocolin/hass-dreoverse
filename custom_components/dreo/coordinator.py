@@ -34,20 +34,30 @@ def _set_toggle_switches_to_state(
     model_config: dict[str, Any],
 ) -> None:
     """Set toggle switch fields on data object from state."""
+    # Map config field names to actual API field names
+    field_name_map = {
+        "led_switch": "ledlevel",  # Config says led_switch, API uses ledlevel
+        "ambient_Light_switch": "ambient_Light_switch",  # Keep as-is for now
+    }
+    
     toggle_switches = get_conf_section(
         model_config, DreoEntityConfigSpec.TOGGLE_ENTITY_CONF
     )
     for toggle_switch in toggle_switches.values():
-        field = toggle_switch.get("field")
+        config_field = toggle_switch.get("field")
         operable_when_off = toggle_switch.get("operable_when_off", False)
-        if (val := state.get(field)) is not None:
+        
+        # Get the actual API field name (use mapping if exists)
+        api_field = field_name_map.get(config_field, config_field)
+        
+        if (val := state.get(api_field)) is not None:
             # ledlevel is a string "On"/"Off", not boolean
-            if field == "ledlevel":
-                setattr(device_data, field, val == "On")
+            if api_field == "ledlevel":
+                setattr(device_data, config_field, val == "On")
             else:
-                setattr(device_data, field, bool(val))
+                setattr(device_data, config_field, bool(val))
         if not operable_when_off and not device_data.is_on:
-            setattr(device_data, field, False)
+            setattr(device_data, config_field, False)
 
 
 def get_conf_section(
@@ -640,8 +650,9 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
     current_humidity: float | None = None
     fog_level: int | None = None
     led_level: str | None = None
-    ledlevel: bool | None = None  # For display switch
+    led_switch: bool | None = None  # For display switch (maps to ledlevel API field)
     mute_switch: bool | None = None  # For panel sound switch
+    ambient_Light_switch: bool | None = None  # For ambient light (doesn't work but in config)
     rgb_level: str | None = None
     rgb_threshold: str | None = None
     filter_time: int | None = None
@@ -656,8 +667,9 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
         current_humidity: float | None = None,
         fog_level: int | None = None,
         led_level: str | None = None,
-        ledlevel: bool | None = None,
+        led_switch: bool | None = None,
         mute_switch: bool | None = None,
+        ambient_Light_switch: bool | None = None,
         rgb_level: str | None = None,
         rgb_threshold: str | None = None,
         filter_time: int | None = None,
@@ -671,8 +683,9 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
         self.current_humidity = current_humidity
         self.fog_level = fog_level
         self.led_level = led_level
-        self.ledlevel = ledlevel
+        self.led_switch = led_switch
         self.mute_switch = mute_switch
+        self.ambient_Light_switch = ambient_Light_switch
         self.rgb_level = rgb_level
         self.rgb_threshold = rgb_threshold
         self.filter_time = filter_time
