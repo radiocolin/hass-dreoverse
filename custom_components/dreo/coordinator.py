@@ -655,6 +655,8 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
     ambient_Light_switch: bool | None = None  # For ambient light (doesn't work but in config)
     rgb_level: str | None = None
     rgb_threshold: str | None = None
+    rgb_color: int | None = None  # RGB color (24-bit integer)
+    rgb_mode: str | None = None  # RGB mode ("Scene" or "Custom" - from rgbmode field)
     filter_time: int | None = None
     work_time: int | None = None
 
@@ -672,6 +674,8 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
         ambient_Light_switch: bool | None = None,
         rgb_level: str | None = None,
         rgb_threshold: str | None = None,
+        rgb_color: int | None = None,
+        rgb_mode: str | None = None,
         filter_time: int | None = None,
         work_time: int | None = None,
         model_config: dict[str, Any] | None = None,
@@ -688,6 +692,8 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
         self.ambient_Light_switch = ambient_Light_switch
         self.rgb_level = rgb_level
         self.rgb_threshold = rgb_threshold
+        self.rgb_color = rgb_color
+        self.rgb_mode = rgb_mode
         self.filter_time = filter_time
         self.work_time = work_time
         self.model_config = model_config
@@ -736,6 +742,13 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
 
         if (work_time := state.get("work_time")) is not None:
             humidifier_data.work_time = int(work_time)
+
+        # RGB light fields (limited - only color and mode exposed)
+        if (rgb_color := state.get("rgb_color")) is not None:
+            humidifier_data.rgb_color = int(rgb_color)
+
+        if (rgb_mode := state.get("rgbmode")) is not None:
+            humidifier_data.rgb_mode = str(rgb_mode)
 
         _set_toggle_switches_to_state(humidifier_data, state, model_config)
 

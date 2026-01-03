@@ -37,6 +37,7 @@ from .coordinator import (
     DreoCirculationFanDeviceData,
     DreoDataUpdateCoordinator,
     DreoGenericDeviceData,
+    DreoHumidifierDeviceData,
 )
 from .entity import DreoEntity
 
@@ -46,7 +47,7 @@ _LOGGER = logging.getLogger(__name__)
 def _has_rgb_features(device_data: DreoGenericDeviceData) -> bool:
     """Check if device data has RGB features."""
     return isinstance(
-        device_data, (DreoCirculationFanDeviceData, DreoCeilingFanDeviceData)
+        device_data, (DreoCirculationFanDeviceData, DreoCeilingFanDeviceData, DreoHumidifierDeviceData)
     )
 
 
@@ -68,6 +69,7 @@ async def async_setup_entry(
                 DreoDeviceType.CIR_FAN,
                 DreoDeviceType.CEILING_FAN,
                 DreoDeviceType.RGBLIGHT_CEILING_FAN,
+                DreoDeviceType.HUMIDIFIER,
             ]:
                 continue
 
@@ -95,6 +97,8 @@ async def async_setup_entry(
             elif device_type == DreoDeviceType.RGBLIGHT_CEILING_FAN:
                 lights.append(DreoRGBLight(device, coordinator))
                 lights.append(DreoRegularLight(device, coordinator))
+            elif device_type == DreoDeviceType.HUMIDIFIER:
+                lights.append(DreoRGBLight(device, coordinator))
         if lights:
             async_add_entities(lights)
 
@@ -165,7 +169,14 @@ class DreoRGBLight(DreoEntity, LightEntity):
 
         # Check if device has RGB features
         has_rgb = _has_rgb_features(fan_data)
-        self._attr_is_on = bool(fan_data.rgb_state) if has_rgb else False
+        is_humidifier = isinstance(fan_data, DreoHumidifierDeviceData)
+        
+        # Humidifiers don't expose on/off state - always show as available
+        if is_humidifier:
+            self._attr_is_on = True  # Always on since we can't detect state
+        else:
+            self._attr_is_on = bool(fan_data.rgb_state) if has_rgb else False
+        
         self._attr_effect = fan_data.rgb_mode if has_rgb else None
         self._attr_color_mode = ColorMode.RGB
 
@@ -183,7 +194,8 @@ class DreoRGBLight(DreoEntity, LightEntity):
                 f"brightness_disabled_breath_{self.entity_id}",
             )
 
-        if fan_data.rgb_brightness is not None:
+        # Humidifiers don't expose brightness - skip for them
+        if not is_humidifier and fan_data.rgb_brightness is not None:
             rgb_brightness = fan_data.rgb_brightness
             max_brightness = self._rgb_brightness[1]
             brightness_percent = (rgb_brightness / max_brightness) * 100
@@ -191,14 +203,24 @@ class DreoRGBLight(DreoEntity, LightEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the RGB light."""
-        command_params: dict[str, Any] = {DreoDirective.AMBIENT_SWITCH: True}
+        is_humidifier = isinstance(self.coordinator.data, DreoHumidifierDeviceData)
+        
+        command_params: dict[str, Any] = {}
+        
+        # Humidifiers don't support on/off control
+        if not is_humidifier:
+            command_params[DreoDirective.AMBIENT_SWITCH] = True
 
         if ATTR_RGB_COLOR in kwargs:
             r, g, b = kwargs[ATTR_RGB_COLOR]
             color_int = (r << 16) | (g << 8) | b
-            command_params[DreoDirective.AMBIENT_RGB_COLOR] = color_int
+            # Humidifiers use rgb_color, fans use ambient_rgb_color
+            if is_humidifier:
+                command_params["rgb_color"] = color_int
+            else:
+                command_params[DreoDirective.AMBIENT_RGB_COLOR] = color_int
 
-        if ATTR_BRIGHTNESS in kwargs:
+        if ATTR_BRIGHTNESS in kwargs and not is_humidifier:
             current_rgb_mode = None
             if self.coordinator.data and _has_rgb_features(self.coordinator.data):
                 current_rgb_mode = getattr(self.coordinator.data, "rgb_mode", None)
@@ -234,15 +256,19 @@ class DreoRGBLight(DreoEntity, LightEntity):
         if ATTR_EFFECT in kwargs:
             effect = kwargs[ATTR_EFFECT]
             if self._attr_effect_list and effect in self._attr_effect_list:
-                command_params[DreoDirective.AMBIENT_RGB_MODE] = effect
-                if (
-                    effect in ["Breath", "Circle"]
-                    and self.coordinator.data
-                    and _has_rgb_features(self.coordinator.data)
-                    and getattr(self.coordinator.data, "rgb_speed", None) is not None
-                ):
-                    current_speed = getattr(self.coordinator.data, "rgb_speed", None)
-                    command_params[DreoDirective.AMBIENT_RGB_SPEED] = current_speed
+                # Humidifiers use rgbmode, fans use ambient_rgb_mode
+                if is_humidifier:
+                    command_params["rgbmode"] = effect
+                else:
+                    command_params[DreoDirective.AMBIENT_RGB_MODE] = effect
+                    if (
+                        effect in ["Breath", "Circle"]
+                        and self.coordinator.data
+                        and _has_rgb_features(self.coordinator.data)
+                        and getattr(self.coordinator.data, "rgb_speed", None) is not None
+                    ):
+                        current_speed = getattr(self.coordinator.data, "rgb_speed", None)
+                        command_params[DreoDirective.AMBIENT_RGB_SPEED] = current_speed
 
         await self.async_send_command_and_update(
             DreoErrorCode.TURN_ON_FAILED, **command_params
@@ -250,6 +276,12 @@ class DreoRGBLight(DreoEntity, LightEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the RGB light."""
+        is_humidifier = isinstance(self.coordinator.data, DreoHumidifierDeviceData)
+        
+        # Humidifiers don't support on/off - this will be a no-op or we could show a warning
+        if is_humidifier:
+            _LOGGER.warning("RGB light on/off control not supported for humidifier %s", self.entity_id)
+            return
         await self.async_send_command_and_update(
             DreoErrorCode.TURN_OFF_FAILED, ambient_switch=False
         )
