@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import DreoConfigEntry
-from .const import DreoEntityConfigSpec, DreoErrorCode
+from .const import DreoDeviceType, DreoEntityConfigSpec, DreoErrorCode
 from .coordinator import DreoDataUpdateCoordinator
 from .entity import DreoEntity
 
@@ -72,8 +72,8 @@ async def async_setup_entry(
                 
                 # Skip ambient_Light_switch for humidifiers - doesn't work and we have RGB light entity instead
                 device_type = device.get("deviceType")
-                if device_type == "humidifier" and field == "ambient_Light_switch":
-                    _LOGGER.debug(
+                if device_type == DreoDeviceType.HUMIDIFIER and field == "ambient_Light_switch":
+                    _LOGGER.info(
                         "Skipping ambient_Light_switch for humidifier %s - using RGB light entity instead",
                         device.get("model")
                     )
