@@ -157,7 +157,12 @@ class DreoToggleSwitch(DreoEntity, SwitchEntity):
                 self.entity_id,
             )
             return
-        await self.async_send_command_and_update(self._error_key, **{self._field: True})
+        
+        # ledlevel needs string "On"/"Off", not boolean
+        if self._field == "ledlevel":
+            await self.async_send_command_and_update(self._error_key, **{self._field: "On"})
+        else:
+            await self.async_send_command_and_update(self._error_key, **{self._field: True})
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off."""
@@ -168,9 +173,14 @@ class DreoToggleSwitch(DreoEntity, SwitchEntity):
                 self.entity_id,
             )
             return
-        await self.async_send_command_and_update(
-            self._error_key, **{self._field: False}
-        )
+        
+        # ledlevel needs string "On"/"Off", not boolean
+        if self._field == "ledlevel":
+            await self.async_send_command_and_update(self._error_key, **{self._field: "Off"})
+        else:
+            await self.async_send_command_and_update(
+                self._error_key, **{self._field: False}
+            )
 
     @property
     def icon(self) -> str | None:

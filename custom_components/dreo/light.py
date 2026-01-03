@@ -37,7 +37,6 @@ from .coordinator import (
     DreoCirculationFanDeviceData,
     DreoDataUpdateCoordinator,
     DreoGenericDeviceData,
-    DreoHumidifierDeviceData,
 )
 from .entity import DreoEntity
 
@@ -47,7 +46,7 @@ _LOGGER = logging.getLogger(__name__)
 def _has_rgb_features(device_data: DreoGenericDeviceData) -> bool:
     """Check if device data has RGB features."""
     return isinstance(
-        device_data, (DreoCirculationFanDeviceData, DreoCeilingFanDeviceData, DreoHumidifierDeviceData)
+        device_data, (DreoCirculationFanDeviceData, DreoCeilingFanDeviceData)
     )
 
 
@@ -69,7 +68,6 @@ async def async_setup_entry(
                 DreoDeviceType.CIR_FAN,
                 DreoDeviceType.CEILING_FAN,
                 DreoDeviceType.RGBLIGHT_CEILING_FAN,
-                DreoDeviceType.HUMIDIFIER,
             ]:
                 continue
 
@@ -97,8 +95,6 @@ async def async_setup_entry(
             elif device_type == DreoDeviceType.RGBLIGHT_CEILING_FAN:
                 lights.append(DreoRGBLight(device, coordinator))
                 lights.append(DreoRegularLight(device, coordinator))
-            elif device_type == DreoDeviceType.HUMIDIFIER:
-                lights.append(DreoRGBLight(device, coordinator))
         if lights:
             async_add_entities(lights)
 

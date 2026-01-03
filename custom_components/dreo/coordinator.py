@@ -41,7 +41,11 @@ def _set_toggle_switches_to_state(
         field = toggle_switch.get("field")
         operable_when_off = toggle_switch.get("operable_when_off", False)
         if (val := state.get(field)) is not None:
-            setattr(device_data, field, bool(val))
+            # ledlevel is a string "On"/"Off", not boolean
+            if field == "ledlevel":
+                setattr(device_data, field, val == "On")
+            else:
+                setattr(device_data, field, bool(val))
         if not operable_when_off and not device_data.is_on:
             setattr(device_data, field, False)
 
@@ -636,14 +640,12 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
     current_humidity: float | None = None
     fog_level: int | None = None
     led_level: str | None = None
+    ledlevel: bool | None = None  # For display switch
+    mute_switch: bool | None = None  # For panel sound switch
     rgb_level: str | None = None
     rgb_threshold: str | None = None
     filter_time: int | None = None
     work_time: int | None = None
-    rgb_state: bool | None = None
-    rgb_mode: str | None = None
-    rgb_color: int | None = None
-    rgb_brightness: int | None = None
 
     def __init__(
         self,
@@ -654,14 +656,12 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
         current_humidity: float | None = None,
         fog_level: int | None = None,
         led_level: str | None = None,
+        ledlevel: bool | None = None,
+        mute_switch: bool | None = None,
         rgb_level: str | None = None,
         rgb_threshold: str | None = None,
         filter_time: int | None = None,
         work_time: int | None = None,
-        rgb_state: bool | None = None,
-        rgb_mode: str | None = None,
-        rgb_color: int | None = None,
-        rgb_brightness: int | None = None,
         model_config: dict[str, Any] | None = None,
     ) -> None:
         """Initialize Dreo humidifier device data."""
@@ -671,14 +671,12 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
         self.current_humidity = current_humidity
         self.fog_level = fog_level
         self.led_level = led_level
+        self.ledlevel = ledlevel
+        self.mute_switch = mute_switch
         self.rgb_level = rgb_level
         self.rgb_threshold = rgb_threshold
         self.filter_time = filter_time
         self.work_time = work_time
-        self.rgb_state = rgb_state
-        self.rgb_mode = rgb_mode
-        self.rgb_color = rgb_color
-        self.rgb_brightness = rgb_brightness
         self.model_config = model_config
 
     @staticmethod
@@ -696,11 +694,12 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
         if (mode := state.get(DreoDirective.MODE)) is not None:
             humidifier_data.mode = str(mode)
 
-        # Humidity ranges - pydreo library provides normalized field names
-        if (rh_auto := state.get("rh_auto")) is not None:
+        # Humidity setpoint - read the correct field based on current mode
+        # Don't read both or the last one will overwrite!
+        current_mode = str(mode) if mode else None
+        if current_mode == "Auto" and (rh_auto := state.get("rh_auto")) is not None:
             humidifier_data.target_humidity = float(rh_auto)
-
-        if (rh_sleep := state.get("rh_sleep")) is not None:
+        elif current_mode == "Sleep" and (rh_sleep := state.get("rh_sleep")) is not None:
             humidifier_data.target_humidity = float(rh_sleep)
 
         # Current humidity
@@ -724,10 +723,6 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
 
         if (work_time := state.get("work_time")) is not None:
             humidifier_data.work_time = int(work_time)
-
-        # RGB light - pydreo may provide rgb_color field for humidifiers
-        if (rgb_color := state.get("rgb_color")) is not None:
-            humidifier_data.rgb_color = int(rgb_color)
 
         _set_toggle_switches_to_state(humidifier_data, state, model_config)
 
