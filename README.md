@@ -4,6 +4,20 @@ This is the official integration component developed and maintained by the Dreo 
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
+## Recent Updates
+
+**DR-HHM009S Humidifier - Enhanced Support** ✨
+- ✅ Fixed humidity setpoint control (mode-specific Auto/Sleep settings)
+- ✅ Added RGB light entity with color picker and effect selection
+- ✅ Added filter life monitoring sensors (percentage and hours remaining)
+- ✅ Added display brightness control switch
+- ✅ Improved mode switching (Auto, Sleep, Manual)
+- ✅ Resolved API field name mismatches for reliable control
+
+The DR-HHM009S now has full integration support with all available features!
+
+---
+
 If you like Dreo products and want to support this integration, you can purchase our devices through this link: [Dreo Fans on Amazon](https://www.amazon.com/s?k=Dreo+Smart+Fan). For more information about our products, please visit our official website at [official website](https://www.dreo.com/).
 
 **Special Offer**: If you submit issues or provide valuable suggestions for our products that we adopt, we will offer you a 15% discount coupon (85% of original price) for purchases on our official website.
@@ -123,13 +137,18 @@ Features for Air Conditioners include:
 #### Humidifiers
 
 - Evaporative Cooler 712S (DR-HEC002S)
+- Humidifier 409S (DR-HHM009S) - *Enhanced support*
 
 Features for Humidifiers include:
 - Power (true, false)
-- Preset modes (Normal, Auto, Sleep, Natural)
-- Set Speed (1-4)
-- Humidity control (40-90%)
-- Oscillate (true, false)
+- Preset modes (varies by model: Normal, Auto, Sleep, Natural, Manual)
+- Set Speed / Fog Level (varies by model: 1-4 or 1-6)
+- Humidity control (30-90%, mode-dependent)
+- Oscillate (true, false) - select models
+- RGB light control with color picker and effects (DR-HHM009S)
+- Filter life monitoring sensors (DR-HHM009S)
+- Display brightness control (DR-HHM009S)
+- Panel sound toggle (DR-HHM009S)
 
 
 Product name could be found on the package box, user manual, or the label on the device.
