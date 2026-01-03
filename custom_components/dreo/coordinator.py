@@ -40,14 +40,12 @@ def _set_toggle_switches_to_state(
     for toggle_switch in toggle_switches.values():
         field = toggle_switch.get("field")
         operable_when_off = toggle_switch.get("operable_when_off", False)
-        
-        # led_switch reads from ledlevel API field (string "On"/"Off")
-        if field == "led_switch":
-            if (val := state.get("ledlevel")) is not None:
+        if (val := state.get(field)) is not None:
+            # ledlevel is a string "On"/"Off", not boolean
+            if field == "ledlevel":
                 setattr(device_data, field, val == "On")
-        elif (val := state.get(field)) is not None:
-            setattr(device_data, field, bool(val))
-        
+            else:
+                setattr(device_data, field, bool(val))
         if not operable_when_off and not device_data.is_on:
             setattr(device_data, field, False)
 
@@ -642,7 +640,7 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
     current_humidity: float | None = None
     fog_level: int | None = None
     led_level: str | None = None
-    led_switch: bool | None = None  # For display switch (from ledlevel API field)
+    ledlevel: bool | None = None  # For display switch
     mute_switch: bool | None = None  # For panel sound switch
     rgb_level: str | None = None
     rgb_threshold: str | None = None
@@ -658,7 +656,7 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
         current_humidity: float | None = None,
         fog_level: int | None = None,
         led_level: str | None = None,
-        led_switch: bool | None = None,
+        ledlevel: bool | None = None,
         mute_switch: bool | None = None,
         rgb_level: str | None = None,
         rgb_threshold: str | None = None,
@@ -673,7 +671,7 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
         self.current_humidity = current_humidity
         self.fog_level = fog_level
         self.led_level = led_level
-        self.led_switch = led_switch
+        self.ledlevel = ledlevel
         self.mute_switch = mute_switch
         self.rgb_level = rgb_level
         self.rgb_threshold = rgb_threshold

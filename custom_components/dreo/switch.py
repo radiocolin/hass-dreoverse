@@ -158,9 +158,9 @@ class DreoToggleSwitch(DreoEntity, SwitchEntity):
             )
             return
         
-        # led_switch maps to ledlevel API field which needs string "On"/"Off", not boolean
-        if self._field == "led_switch":
-            await self.async_send_command_and_update(self._error_key, ledlevel="On")
+        # ledlevel needs string "On"/"Off", not boolean
+        if self._field == "ledlevel":
+            await self.async_send_command_and_update(self._error_key, **{self._field: "On"})
         else:
             await self.async_send_command_and_update(self._error_key, **{self._field: True})
 
@@ -174,9 +174,9 @@ class DreoToggleSwitch(DreoEntity, SwitchEntity):
             )
             return
         
-        # led_switch maps to ledlevel API field which needs string "On"/"Off", not boolean
-        if self._field == "led_switch":
-            await self.async_send_command_and_update(self._error_key, ledlevel="Off")
+        # ledlevel needs string "On"/"Off", not boolean
+        if self._field == "ledlevel":
+            await self.async_send_command_and_update(self._error_key, **{self._field: "Off"})
         else:
             await self.async_send_command_and_update(
                 self._error_key, **{self._field: False}
