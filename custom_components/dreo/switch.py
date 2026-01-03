@@ -69,6 +69,16 @@ async def async_setup_entry(
                         device.get("model"),
                     )
                     continue
+                
+                # Skip ambient_Light_switch for humidifiers - doesn't work and we have RGB light entity instead
+                device_type = device.get("deviceType")
+                if device_type == "humidifier" and field == "ambient_Light_switch":
+                    _LOGGER.debug(
+                        "Skipping ambient_Light_switch for humidifier %s - using RGB light entity instead",
+                        device.get("model")
+                    )
+                    continue
+                
                 data = DreoToggleSwitchData(
                     field=field,
                     name=toggle_switch.get("labelName") or field,
