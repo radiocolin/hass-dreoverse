@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import DreoConfigEntry
-from .const import DreoEntityConfigSpec, DreoErrorCode
+from .const import DreoDeviceType, DreoEntityConfigSpec, DreoErrorCode
 from .coordinator import DreoDataUpdateCoordinator
 from .entity import DreoEntity
 
@@ -60,14 +60,39 @@ async def async_setup_entry(
             }
 
             for toggle_switch in toggle_switches.values():
-                field = toggle_switch.get("field")
+                original_field = toggle_switch.get("field")
 
-                if not field:
+                if not original_field:
                     _LOGGER.warning(
                         "Skipping toggle switch with missing field in model %s",
                         device.get("model"),
                     )
                     continue
+                
+                # Skip switches that don't work on humidifiers
+                device_type = device.get("deviceType")
+                field = original_field  # Field to actually use for API
+                
+                if device_type == DreoDeviceType.HUMIDIFIER:
+                    # Only allow display and sound switches for humidifiers
+                    # Config might use "led_switch" for display
+                    # Skip ambient_Light_switch, rgb switches, etc. (not controllable via API)
+                    if original_field not in ["ledlevel", "mute_switch", "led_switch"]:
+                        _LOGGER.debug(
+                            "Skipping non-functional toggle switch '%s' for humidifier %s",
+                            original_field,
+                            device.get("model"),
+                        )
+                        continue
+                    
+                    # Map led_switch to ledlevel for proper API communication
+                    if original_field == "led_switch":
+                        _LOGGER.info(
+                            "Mapping led_switch to ledlevel for humidifier %s",
+                            device.get("model"),
+                        )
+                        field = "ledlevel"
+                
                 data = DreoToggleSwitchData(
                     field=field,
                     name=toggle_switch.get("labelName") or field,
