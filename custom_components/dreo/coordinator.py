@@ -34,13 +34,29 @@ def _set_toggle_switches_to_state(
     model_config: dict[str, Any],
 ) -> None:
     """Set toggle switch fields on data object from state."""
+    # Map config field names to potential API field names
+    field_name_alternates = {
+        "led_switch": ["ledswitch", "ledon", "led_switch"],
+        "mute_switch": ["muteon", "muteswitch", "mute_switch"],
+        "ambient_Light_switch": ["rgbon", "ambient_light_switch", "ambient_switch"],
+        "ambient_light_switch": ["rgbon", "ambient_light_switch", "ambient_switch"],
+    }
+    
     toggle_switches = get_conf_section(
         model_config, DreoEntityConfigSpec.TOGGLE_ENTITY_CONF
     )
     for toggle_switch in toggle_switches.values():
         field = toggle_switch.get("field")
         operable_when_off = toggle_switch.get("operable_when_off", False)
-        if (val := state.get(field)) is not None:
+        
+        # Try the field name and alternates
+        val = None
+        for field_name in [field] + field_name_alternates.get(field, []):
+            val = get_state_value(state, field_name)
+            if val is not None:
+                break
+        
+        if val is not None:
             setattr(device_data, field, bool(val))
         if not operable_when_off and not device_data.is_on:
             setattr(device_data, field, False)
@@ -62,6 +78,24 @@ def get_conf(
 ) -> Any:
     """Safely fetch a nested config value with a default."""
     return get_conf_section(model_config, section).get(key, default)
+
+
+def get_state_value(state: dict[str, Any], key: str) -> Any | None:
+    """Extract value from state, handling both flat and nested structures.
+    
+    Some devices return flat values: {"key": value}
+    Some return nested: {"key": {"state": value, "timestamp": ts}}
+    """
+    value = state.get(key)
+    if value is None:
+        return None
+    
+    # If it's a dict with 'state' key, extract the state value
+    if isinstance(value, dict) and "state" in value:
+        return value["state"]
+    
+    # Otherwise return the value directly
+    return value
 
 
 class DreoGenericDeviceData:
@@ -685,56 +719,82 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
     ) -> DreoHumidifierDeviceData:
         """Process humidifier device specific data."""
 
+        # Check both normalized and raw API field names for power and connection
+        is_connected = get_state_value(state, DreoDirective.CONNECTED) or get_state_value(state, "connected")
+        is_powered = get_state_value(state, "poweron") or get_state_value(state, DreoDirective.POWER_SWITCH)
+        
         humidifier_data = DreoHumidifierDeviceData(
-            available=state.get(DreoDirective.CONNECTED, False),
-            is_on=state.get(DreoDirective.POWER_SWITCH, False),
+            available=bool(is_connected or False),
+            is_on=bool(is_powered or False),
             model_config=model_config,
         )
 
-        if (mode := state.get(DreoDirective.MODE)) is not None:
+        if (mode := get_state_value(state, DreoDirective.MODE)) is not None:
             humidifier_data.mode = str(mode)
 
         # Humidity ranges - different for different modes
-        # The pydreo library may translate field names, check both possible names
-        if (rh_auto := state.get("rh_auto")) is not None:
+        # Try both pydreo normalized and raw API field names
+        if (rh_auto := get_state_value(state, "rhautolevel")) is not None:
+            humidifier_data.target_humidity = float(rh_auto)
+        elif (rh_auto := get_state_value(state, "rh_auto")) is not None:
             humidifier_data.target_humidity = float(rh_auto)
 
-        if (rh_sleep := state.get("rh_sleep")) is not None:
+        if (rh_sleep := get_state_value(state, "rhsleeplevel")) is not None:
+            humidifier_data.target_humidity = float(rh_sleep)
+        elif (rh_sleep := get_state_value(state, "rh_sleep")) is not None:
             humidifier_data.target_humidity = float(rh_sleep)
 
         # Current humidity
-        if (humidity := state.get(DreoDirective.HUMIDITY_SENSOR)) is not None:
+        if (humidity := get_state_value(state, "rh")) is not None:
+            humidifier_data.current_humidity = float(humidity)
+        elif (humidity := get_state_value(state, DreoDirective.HUMIDITY_SENSOR)) is not None:
             humidifier_data.current_humidity = float(humidity)
 
-        if (fog_level := state.get("fog_level")) is not None:
+        if (fog_level := get_state_value(state, "foglevel")) is not None:
+            humidifier_data.fog_level = int(fog_level)
+        elif (fog_level := get_state_value(state, "fog_level")) is not None:
             humidifier_data.fog_level = int(fog_level)
 
-        if (led_level := state.get("ledlevel")) is not None:
+        if (led_level := get_state_value(state, "ledlevel")) is not None:
             humidifier_data.led_level = str(led_level)
 
-        if (rgb_level := state.get("rgblevel")) is not None:
+        if (rgb_level := get_state_value(state, "rgblevel")) is not None:
             humidifier_data.rgb_level = str(rgb_level)
 
-        if (rgb_threshold := state.get("rgb_threshold")) is not None:
+        if (rgb_threshold := get_state_value(state, "rgbth")) is not None:
+            humidifier_data.rgb_threshold = str(rgb_threshold)
+        elif (rgb_threshold := get_state_value(state, "rgb_threshold")) is not None:
             humidifier_data.rgb_threshold = str(rgb_threshold)
 
-        if (filter_time := state.get("filter_time")) is not None:
+        if (filter_time := get_state_value(state, "filtertime")) is not None:
+            humidifier_data.filter_time = int(filter_time)
+        elif (filter_time := get_state_value(state, "filter_time")) is not None:
             humidifier_data.filter_time = int(filter_time)
 
-        if (work_time := state.get("work_time")) is not None:
+        if (work_time := get_state_value(state, "worktime")) is not None:
+            humidifier_data.work_time = int(work_time)
+        elif (work_time := get_state_value(state, "work_time")) is not None:
             humidifier_data.work_time = int(work_time)
 
-        # RGB light state - try ambient switch first (may be translated by pydreo)
-        if (rgb_on := state.get(DreoDirective.AMBIENT_SWITCH)) is not None:
+        # RGB light state - try both raw API and normalized names
+        if (rgb_on := get_state_value(state, "rgbon")) is not None:
+            humidifier_data.rgb_state = bool(rgb_on)
+        elif (rgb_on := get_state_value(state, DreoDirective.AMBIENT_SWITCH)) is not None:
             humidifier_data.rgb_state = bool(rgb_on)
 
-        if (rgb_mode := state.get(DreoDirective.AMBIENT_RGB_MODE)) is not None:
+        if (rgb_mode := get_state_value(state, "rgbmode")) is not None:
+            humidifier_data.rgb_mode = str(rgb_mode)
+        elif (rgb_mode := get_state_value(state, DreoDirective.AMBIENT_RGB_MODE)) is not None:
             humidifier_data.rgb_mode = str(rgb_mode)
 
-        if (rgb_color := state.get(DreoDirective.AMBIENT_RGB_COLOR)) is not None:
+        if (rgb_color := get_state_value(state, "rgbcolor")) is not None:
+            humidifier_data.rgb_color = int(rgb_color)
+        elif (rgb_color := get_state_value(state, DreoDirective.AMBIENT_RGB_COLOR)) is not None:
             humidifier_data.rgb_color = int(rgb_color)
 
-        if (rgb_brightness := state.get(DreoDirective.AMBIENT_RGB_BRIGHTNESS)) is not None:
+        if (rgb_brightness := get_state_value(state, "rgbbri")) is not None:
+            humidifier_data.rgb_brightness = int(rgb_brightness)
+        elif (rgb_brightness := get_state_value(state, DreoDirective.AMBIENT_RGB_BRIGHTNESS)) is not None:
             humidifier_data.rgb_brightness = int(rgb_brightness)
 
         _set_toggle_switches_to_state(humidifier_data, state, model_config)
